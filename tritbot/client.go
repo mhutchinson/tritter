@@ -49,7 +49,7 @@ func (t *tritBot) Send(ctx context.Context, user, msg string) error {
 	// Second: check the message is in the log.
 
 	// Then continue to send the message to the server.
-	ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, *sendTimeout)
 	defer cancel()
 	_, err := t.c.Send(ctx, &pb.SendRequest{Message: msg})
 	return err
