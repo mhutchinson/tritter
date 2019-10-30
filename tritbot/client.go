@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/user"
 	"time"
 
 	"github.com/golang/glog"
@@ -25,9 +26,9 @@ type fileLogger struct {
 	f *os.File
 }
 
-func (l *fileLogger) log(msg string) error {
+func (l *fileLogger) log(user, msg string) error {
 	t := time.Now().UTC()
-	_, err := l.f.WriteString(fmt.Sprintf("%v: %v\n", t.Format(time.RFC3339), msg))
+	_, err := l.f.WriteString(fmt.Sprintf("%v: [%v] %v\n", t.Format(time.RFC3339), user, msg))
 	return err
 }
 
@@ -37,13 +38,15 @@ type tritBot struct {
 	log     fileLogger
 }
 
-func (t *tritBot) Send(ctx context.Context, msg string) error {
+func (t *tritBot) Send(ctx context.Context, user, msg string) error {
 	glog.Infof("Sending message '%v'", msg)
 
-	// First ensure the message is in the log.
-	if err := t.log.log(msg); err != nil {
+	// First write the message to the log.
+	if err := t.log.log(user, msg); err != nil {
 		glog.Fatalf("failed to log: %v", err)
 	}
+
+	// Second: check the message is in the log.
 
 	// Then continue to send the message to the server.
 	ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
@@ -58,6 +61,11 @@ func main() {
 	// Read the message from the argument list.
 	if len(flag.Args()) == 0 {
 		glog.Fatal("Required arguments: messages to send")
+	}
+
+	user, err := user.Current()
+	if err != nil {
+		glog.Fatalf("could not determine user: %v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), *connectTimeout)
@@ -83,7 +91,7 @@ func main() {
 	}
 
 	for _, msg := range flag.Args() {
-		if err := t.Send(context.Background(), msg); err != nil {
+		if err := t.Send(context.Background(), user.Username, msg); err != nil {
 			glog.Fatalf("could not greet: %v", err)
 		}
 	}
