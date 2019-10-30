@@ -6,7 +6,7 @@ import (
 	"net"
 
 	"github.com/golang/glog"
-	pb "github.com/mhutchinson/tritter"
+	"github.com/mhutchinson/tritter/tritter"
 	"google.golang.org/grpc"
 )
 
@@ -16,13 +16,13 @@ const (
 
 // server is used to implement TritterServer.
 type server struct {
-	pb.UnimplementedTritterServer
+	tritter.UnimplementedTritterServer
 }
 
 // Send implements TritterServer.Send.
-func (s *server) Send(ctx context.Context, in *pb.SendRequest) (*pb.SendResponse, error) {
+func (s *server) Send(ctx context.Context, in *tritter.SendRequest) (*tritter.SendResponse, error) {
 	glog.Infof("Send: %v", in.GetMessage())
-	return &pb.SendResponse{}, nil
+	return &tritter.SendResponse{}, nil
 }
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 		glog.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterTritterServer(s, &server{})
+	tritter.RegisterTritterServer(s, &server{})
 	if err := s.Serve(lis); err != nil {
 		glog.Fatalf("failed to serve: %v", err)
 	}

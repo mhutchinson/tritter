@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	pb "github.com/mhutchinson/tritter"
+	"github.com/mhutchinson/tritter/tritbot"
+	"github.com/mhutchinson/tritter/tritter"
 	"google.golang.org/grpc"
 )
 
@@ -26,23 +27,21 @@ type fileLogger struct {
 	f *os.File
 }
 
-func (l *fileLogger) log(user, msg string) error {
+func (l *fileLogger) log(msg tritbot.InternalMessage) error {
 	t := time.Now().UTC()
-	_, err := l.f.WriteString(fmt.Sprintf("%v: [%v] %v\n", t.Format(time.RFC3339), user, msg))
+	_, err := l.f.WriteString(fmt.Sprintf("%v: [%v] %v\n", t.Format(time.RFC3339), msg.GetUser(), msg.GetMessage()))
 	return err
 }
 
 type tritBot struct {
-	c       pb.TritterClient
+	c       tritter.TritterClient
 	timeout time.Duration
 	log     fileLogger
 }
 
-func (t *tritBot) Send(ctx context.Context, user, msg string) error {
-	glog.Infof("Sending message '%v'", msg)
-
+func (t *tritBot) Send(ctx context.Context, msg tritbot.InternalMessage) error {
 	// First write the message to the log.
-	if err := t.log.log(user, msg); err != nil {
+	if err := t.log.log(msg); err != nil {
 		glog.Fatalf("failed to log: %v", err)
 	}
 
@@ -51,7 +50,7 @@ func (t *tritBot) Send(ctx context.Context, user, msg string) error {
 	// Then continue to send the message to the server.
 	ctx, cancel := context.WithTimeout(ctx, *sendTimeout)
 	defer cancel()
-	_, err := t.c.Send(ctx, &pb.SendRequest{Message: msg})
+	_, err := t.c.Send(ctx, &tritter.SendRequest{Message: msg.GetMessage()})
 	return err
 }
 
@@ -85,13 +84,13 @@ func main() {
 	}
 
 	t := tritBot{
-		c:       pb.NewTritterClient(conn),
+		c:       tritter.NewTritterClient(conn),
 		timeout: *sendTimeout,
 		log:     fileLogger{f: f},
 	}
 
 	for _, msg := range flag.Args() {
-		if err := t.Send(context.Background(), user.Username, msg); err != nil {
+		if err := t.Send(context.Background(), tritbot.InternalMessage{User: user.Username, Message: msg}); err != nil {
 			glog.Fatalf("could not greet: %v", err)
 		}
 	}
