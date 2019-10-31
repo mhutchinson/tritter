@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/mhutchinson/tritter/tritbot"
+	"github.com/mhutchinson/tritter/tritbot/log"
 	"github.com/mhutchinson/tritter/tritter"
 	"google.golang.org/grpc"
 )
@@ -27,7 +27,7 @@ type fileLogger struct {
 	f *os.File
 }
 
-func (l *fileLogger) log(msg tritbot.InternalMessage) error {
+func (l *fileLogger) log(msg log.InternalMessage) error {
 	t := time.Now().UTC()
 	_, err := l.f.WriteString(fmt.Sprintf("%v: [%v] %v\n", t.Format(time.RFC3339), msg.GetUser(), msg.GetMessage()))
 	return err
@@ -39,7 +39,7 @@ type tritBot struct {
 	log     fileLogger
 }
 
-func (t *tritBot) Send(ctx context.Context, msg tritbot.InternalMessage) error {
+func (t *tritBot) Send(ctx context.Context, msg log.InternalMessage) error {
 	// First write the message to the log.
 	if err := t.log.log(msg); err != nil {
 		glog.Fatalf("failed to log: %v", err)
@@ -90,7 +90,7 @@ func main() {
 	}
 
 	for _, msg := range flag.Args() {
-		if err := t.Send(context.Background(), tritbot.InternalMessage{User: user.Username, Message: msg}); err != nil {
+		if err := t.Send(context.Background(), log.InternalMessage{User: user.Username, Message: msg}); err != nil {
 			glog.Fatalf("could not greet: %v", err)
 		}
 	}

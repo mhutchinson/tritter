@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package tritbot;
+package log;
 
-option go_package = "github.com/mhutchinson/tritter/tritbot";
+option go_package = "github.com/mhutchinson/tritter/tritbot/log";
 
 // InternalMessage has the details of a message that is going to
 // be sent under the corporate account. It contains details that
