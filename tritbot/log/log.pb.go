@@ -4,8 +4,12 @@
 package log
 
 import (
+	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
+	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -71,21 +75,177 @@ func (m *InternalMessage) GetMessage() string {
 	return ""
 }
 
+type LogRequest struct {
+	Message              *InternalMessage `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
+}
+
+func (m *LogRequest) Reset()         { *m = LogRequest{} }
+func (m *LogRequest) String() string { return proto.CompactTextString(m) }
+func (*LogRequest) ProtoMessage()    {}
+func (*LogRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a153da538f858886, []int{1}
+}
+
+func (m *LogRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_LogRequest.Unmarshal(m, b)
+}
+func (m *LogRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_LogRequest.Marshal(b, m, deterministic)
+}
+func (m *LogRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogRequest.Merge(m, src)
+}
+func (m *LogRequest) XXX_Size() int {
+	return xxx_messageInfo_LogRequest.Size(m)
+}
+func (m *LogRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_LogRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LogRequest proto.InternalMessageInfo
+
+func (m *LogRequest) GetMessage() *InternalMessage {
+	if m != nil {
+		return m.Message
+	}
+	return nil
+}
+
+type LogResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *LogResponse) Reset()         { *m = LogResponse{} }
+func (m *LogResponse) String() string { return proto.CompactTextString(m) }
+func (*LogResponse) ProtoMessage()    {}
+func (*LogResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a153da538f858886, []int{2}
+}
+
+func (m *LogResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_LogResponse.Unmarshal(m, b)
+}
+func (m *LogResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_LogResponse.Marshal(b, m, deterministic)
+}
+func (m *LogResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_LogResponse.Merge(m, src)
+}
+func (m *LogResponse) XXX_Size() int {
+	return xxx_messageInfo_LogResponse.Size(m)
+}
+func (m *LogResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_LogResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_LogResponse proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterType((*InternalMessage)(nil), "log.InternalMessage")
+	proto.RegisterType((*LogRequest)(nil), "log.LogRequest")
+	proto.RegisterType((*LogResponse)(nil), "log.LogResponse")
 }
 
 func init() { proto.RegisterFile("log.proto", fileDescriptor_a153da538f858886) }
 
 var fileDescriptor_a153da538f858886 = []byte{
-	// 136 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xcc, 0xc9, 0x4f, 0xd7,
-	0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0xce, 0xc9, 0x4f, 0x57, 0xb2, 0xe7, 0xe2, 0xf7, 0xcc,
-	0x2b, 0x49, 0x2d, 0xca, 0x4b, 0xcc, 0xf1, 0x4d, 0x2d, 0x2e, 0x4e, 0x4c, 0x4f, 0x15, 0x12, 0xe2,
-	0x62, 0x29, 0x2d, 0x4e, 0x2d, 0x92, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x0c, 0x02, 0xb3, 0x85, 0x24,
-	0xb8, 0xd8, 0x73, 0x21, 0xd2, 0x12, 0x4c, 0x60, 0x61, 0x18, 0xd7, 0x49, 0x27, 0x4a, 0x2b, 0x3d,
-	0xb3, 0x24, 0xa3, 0x34, 0x49, 0x2f, 0x39, 0x3f, 0x57, 0x3f, 0x37, 0xa3, 0xb4, 0x24, 0x39, 0x23,
-	0x33, 0xaf, 0x38, 0x3f, 0x4f, 0xbf, 0xa4, 0x28, 0xb3, 0xa4, 0x24, 0xb5, 0x08, 0x4c, 0x27, 0xe5,
-	0x97, 0xe8, 0xe7, 0xe4, 0xa7, 0x27, 0xb1, 0x81, 0xad, 0x36, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff,
-	0x97, 0x4d, 0xd0, 0x6a, 0x87, 0x00, 0x00, 0x00,
+	// 203 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x8f, 0xb1, 0x4b, 0xc5, 0x40,
+	0x0c, 0x87, 0x7d, 0x3e, 0x79, 0xf2, 0x52, 0xa4, 0x72, 0x38, 0x14, 0x27, 0xe9, 0x24, 0x45, 0xae,
+	0x50, 0x1d, 0x05, 0xc1, 0x4d, 0xa8, 0x4b, 0x47, 0xb7, 0xb6, 0x84, 0xb4, 0x70, 0xbd, 0xd4, 0xbb,
+	0xdc, 0xff, 0x2f, 0xbd, 0x22, 0x07, 0x6f, 0x4a, 0xf2, 0x4b, 0x3e, 0x3e, 0x02, 0x67, 0xc3, 0xa4,
+	0x57, 0xc7, 0xc2, 0xea, 0x68, 0x98, 0xca, 0x0f, 0xc8, 0xbf, 0xac, 0xa0, 0xb3, 0xbd, 0xf9, 0x46,
+	0xef, 0x7b, 0x42, 0xa5, 0xe0, 0x26, 0x78, 0x74, 0xc5, 0xe1, 0xe9, 0xf0, 0x7c, 0xee, 0x62, 0xaf,
+	0x0a, 0xb8, 0x5d, 0xf6, 0x75, 0x71, 0x1d, 0xe3, 0xff, 0xb1, 0x7c, 0x07, 0x68, 0x99, 0x3a, 0xfc,
+	0x0d, 0xe8, 0x45, 0xe9, 0x74, 0xb7, 0xe1, 0x59, 0xf3, 0xa0, 0x37, 0xe1, 0x85, 0x22, 0xd1, 0x77,
+	0x90, 0x45, 0xda, 0xaf, 0x6c, 0x3d, 0x36, 0x6f, 0x70, 0x6a, 0x99, 0x08, 0x9d, 0xaa, 0xe0, 0xd8,
+	0x32, 0xa9, 0x3c, 0xe2, 0x49, 0xf0, 0x78, 0x9f, 0x82, 0x9d, 0x29, 0xaf, 0x3e, 0x5f, 0x7e, 0x2a,
+	0x9a, 0x65, 0x0a, 0x83, 0x1e, 0x79, 0xa9, 0x97, 0x29, 0xc8, 0x38, 0xcd, 0xd6, 0xb3, 0xad, 0xc5,
+	0xcd, 0x22, 0xe8, 0x62, 0x1d, 0x58, 0x6a, 0xc3, 0x34, 0x9c, 0xe2, 0xf7, 0xaf, 0x7f, 0x01, 0x00,
+	0x00, 0xff, 0xff, 0xac, 0xa4, 0x3d, 0x7e, 0x0a, 0x01, 0x00, 0x00,
+}
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConn
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion4
+
+// LoggerClient is the client API for Logger service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type LoggerClient interface {
+	Log(ctx context.Context, in *LogRequest, opts ...grpc.CallOption) (*LogResponse, error)
+}
+
+type loggerClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewLoggerClient(cc *grpc.ClientConn) LoggerClient {
+	return &loggerClient{cc}
+}
+
+func (c *loggerClient) Log(ctx context.Context, in *LogRequest, opts ...grpc.CallOption) (*LogResponse, error) {
+	out := new(LogResponse)
+	err := c.cc.Invoke(ctx, "/log.Logger/Log", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// LoggerServer is the server API for Logger service.
+type LoggerServer interface {
+	Log(context.Context, *LogRequest) (*LogResponse, error)
+}
+
+// UnimplementedLoggerServer can be embedded to have forward compatible implementations.
+type UnimplementedLoggerServer struct {
+}
+
+func (*UnimplementedLoggerServer) Log(ctx context.Context, req *LogRequest) (*LogResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Log not implemented")
+}
+
+func RegisterLoggerServer(s *grpc.Server, srv LoggerServer) {
+	s.RegisterService(&_Logger_serviceDesc, srv)
+}
+
+func _Logger_Log_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LoggerServer).Log(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/log.Logger/Log",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LoggerServer).Log(ctx, req.(*LogRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _Logger_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "log.Logger",
+	HandlerType: (*LoggerServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Log",
+			Handler:    _Logger_Log_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "log.proto",
 }

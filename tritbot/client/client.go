@@ -4,8 +4,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
-	"os"
 	"os/user"
 	"time"
 
@@ -18,38 +16,30 @@ import (
 var (
 	tritterAddr    = flag.String("tritter_addr", "localhost:50051", "the address of the tritter server")
 	connectTimeout = flag.Duration("connect_timeout", time.Second, "the timeout for connecting to the server")
-	sendTimeout    = flag.Duration("send_timeout", 100*time.Millisecond, "the timeout for sending each message")
+	sendTimeout    = flag.Duration("send_timeout", 500*time.Millisecond, "the timeout for logging & sending each message")
 
-	logFile = flag.String("log_file", "/tmp/tritter.log", "file path for message log")
+	loggerAddr = flag.String("logger_addr", "localhost:50052", "the address of the logger server")
 )
-
-type fileLogger struct {
-	f *os.File
-}
-
-func (l *fileLogger) log(msg log.InternalMessage) error {
-	t := time.Now().UTC()
-	_, err := l.f.WriteString(fmt.Sprintf("%v: [%v] %v\n", t.Format(time.RFC3339), msg.GetUser(), msg.GetMessage()))
-	return err
-}
 
 type tritBot struct {
 	c       tritter.TritterClient
 	timeout time.Duration
-	log     fileLogger
+
+	log log.LoggerClient
 }
 
 func (t *tritBot) Send(ctx context.Context, msg log.InternalMessage) error {
+	ctx, cancel := context.WithTimeout(ctx, *sendTimeout)
+	defer cancel()
+
 	// First write the message to the log.
-	if err := t.log.log(msg); err != nil {
-		glog.Fatalf("failed to log: %v", err)
+	if _, err := t.log.Log(ctx, &log.LogRequest{Message: &msg}); err != nil {
+		return err
 	}
 
 	// Second: check the message is in the log.
 
 	// Then continue to send the message to the server.
-	ctx, cancel := context.WithTimeout(ctx, *sendTimeout)
-	defer cancel()
 	_, err := t.c.Send(ctx, &tritter.SendRequest{Message: msg.GetMessage()})
 	return err
 }
@@ -70,23 +60,24 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *connectTimeout)
 	defer cancel()
 
-	// Set up a connection to the server.
-	conn, err := grpc.DialContext(ctx, *tritterAddr, grpc.WithInsecure(), grpc.WithBlock())
+	// Set up a connection to the Tritter server.
+	tCon, err := grpc.DialContext(ctx, *tritterAddr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		glog.Fatalf("did not connect: %v", err)
 	}
-	defer conn.Close()
+	defer tCon.Close()
 
-	// Open the log file for writing.
-	f, err := os.OpenFile(*logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	// Set up a connection to the Logger server.
+	lCon, err := grpc.DialContext(ctx, *loggerAddr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		glog.Fatalf("could not open log file: %v", err)
+		glog.Fatalf("did not connect: %v", err)
 	}
+	defer lCon.Close()
 
 	t := tritBot{
-		c:       tritter.NewTritterClient(conn),
+		c:       tritter.NewTritterClient(tCon),
 		timeout: *sendTimeout,
-		log:     fileLogger{f: f},
+		log:     log.NewLoggerClient(lCon),
 	}
 
 	for _, msg := range flag.Args() {
