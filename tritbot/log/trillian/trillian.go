@@ -47,12 +47,12 @@ func newTrillianLogger() *trillianLogger {
 	defer cancel()
 	conn, err := grpc.DialContext(ctx, *logAddr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		glog.Fatalf("did not connect: %v", err)
+		glog.Fatalf("did not connect to trillian on %v: %v", *logAddr, err)
 	}
 	admin := trillian.NewTrillianAdminClient(conn)
 	tree, err := admin.GetTree(ctx, &trillian.GetTreeRequest{TreeId: *treeID})
 	if err != nil {
-		glog.Fatalf("failed to get tree: %v", err)
+		glog.Fatalf("failed to get tree %d: %v", *treeID, err)
 	}
 	v, err := client.NewLogVerifierFromTree(tree)
 	if err != nil {
