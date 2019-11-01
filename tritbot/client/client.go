@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"os/user"
 	"time"
@@ -19,6 +20,7 @@ var (
 	connectTimeout = flag.Duration("connect_timeout", time.Second, "the timeout for connecting to the server")
 	sendTimeout    = flag.Duration("send_timeout", 5*time.Second, "the timeout for logging & sending each message")
 
+	checkProof = flag.Bool("check_proof", false, "whether to confirm the data is logged before sending to tritter")
 	loggerAddr = flag.String("logger_addr", "localhost:50052", "the address of the logger server")
 )
 
@@ -34,14 +36,22 @@ func (t *tritBot) Send(ctx context.Context, msg log.InternalMessage) error {
 	defer cancel()
 
 	// First write the message to the log.
-	if _, err := t.log.Log(ctx, &log.LogRequest{Message: &msg}); err != nil {
+	r, err := t.log.Log(ctx, &log.LogRequest{Message: &msg})
+	if err != nil {
 		return err
 	}
 
 	// Second: check the message is in the log.
+	if *checkProof {
+		if r.GetProof() == nil {
+			return errors.New("no proof to verify")
+		}
+		// TODO(mhutchinson): actually check the proof.
+		glog.Warningf("TODO: check proof %v", r)
+	}
 
 	// Then continue to send the message to the server.
-	_, err := t.c.Send(ctx, &tritter.SendRequest{Message: msg.GetMessage()})
+	_, err = t.c.Send(ctx, &tritter.SendRequest{Message: msg.GetMessage()})
 	return err
 }
 

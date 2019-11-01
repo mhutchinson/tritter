@@ -34,6 +34,7 @@ type trillianLogger struct {
 	log.UnimplementedLoggerServer
 
 	c  *client.LogClient
+	l  trillian.TrillianLogClient
 	lc *grpc.ClientConn // Close this after use.
 }
 
@@ -64,6 +65,7 @@ func newTrillianLogger() *trillianLogger {
 
 	return &trillianLogger{
 		c:  c,
+		l:  log,
 		lc: conn,
 	}
 }
@@ -72,18 +74,30 @@ func newTrillianLogger() *trillianLogger {
 func (l *trillianLogger) Log(ctx context.Context, in *log.LogRequest) (*log.LogResponse, error) {
 	msg := in.GetMessage()
 	if len(msg.GetMessage()) == 0 || len(msg.GetUser()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Message and user required")
+		return nil, status.Error(codes.InvalidArgument, "message and user required")
 	}
 
+	// Serialize the message and write to Trillian, blocking until written.
 	bs, err := proto.Marshal(msg)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not marshal log message: %v", err)
+		return nil, status.Errorf(codes.Internal, "could not marshal log message: %v", err)
 	}
 	l.c.AddLeaf(ctx, bs)
 	r := l.c.GetRoot()
 	glog.Infof("Logged to Trillian and included in r=%d: %v", r.Revision, msg)
 
-	return &log.LogResponse{}, nil
+	// Now get the inclusion proof and return that.
+	leaf := l.c.BuildLeaf(bs)
+	resp, err := l.l.GetInclusionProofByHash(ctx,
+		&trillian.GetInclusionProofByHashRequest{
+			LogId:    *treeID,
+			LeafHash: leaf.MerkleLeafHash,
+			TreeSize: int64(r.TreeSize),
+		})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get inclusion proof: %v", err)
+	}
+	return &log.LogResponse{Proof: &log.LogProof{Root: resp.GetSignedLogRoot(), Proof: resp.GetProof()[0]}}, nil
 }
 
 func (l *trillianLogger) close() error {

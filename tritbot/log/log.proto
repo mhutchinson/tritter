@@ -4,6 +4,8 @@ package log;
 
 option go_package = "github.com/mhutchinson/tritter/tritbot/log";
 
+import "trillian.proto";
+import "trillian_log_api.proto";
 import "google/protobuf/timestamp.proto";
 
 // InternalMessage has the details of a message that is going to
@@ -16,6 +18,11 @@ message InternalMessage {
     google.protobuf.Timestamp timestamp = 3;
 }
 
+message LogProof {
+    trillian.SignedLogRoot root = 1;
+    trillian.Proof proof = 2;
+}
+
 service Logger {
     rpc Log(LogRequest) returns (LogResponse) {}
 }
@@ -25,4 +32,5 @@ message LogRequest {
 }
 
 message LogResponse {
+    LogProof proof = 1;
 }
