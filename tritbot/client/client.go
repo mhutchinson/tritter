@@ -16,7 +16,7 @@ import (
 var (
 	tritterAddr    = flag.String("tritter_addr", "localhost:50051", "the address of the tritter server")
 	connectTimeout = flag.Duration("connect_timeout", time.Second, "the timeout for connecting to the server")
-	sendTimeout    = flag.Duration("send_timeout", 500*time.Millisecond, "the timeout for logging & sending each message")
+	sendTimeout    = flag.Duration("send_timeout", 2*time.Second, "the timeout for logging & sending each message")
 
 	loggerAddr = flag.String("logger_addr", "localhost:50052", "the address of the logger server")
 )
@@ -63,14 +63,14 @@ func main() {
 	// Set up a connection to the Tritter server.
 	tCon, err := grpc.DialContext(ctx, *tritterAddr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		glog.Fatalf("did not connect: %v", err)
+		glog.Fatalf("did not connect to tritter on %v: %v", *tritterAddr, err)
 	}
 	defer tCon.Close()
 
 	// Set up a connection to the Logger server.
 	lCon, err := grpc.DialContext(ctx, *loggerAddr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		glog.Fatalf("did not connect: %v", err)
+		glog.Fatalf("did not connect to logger on %v: %v", *loggerAddr, err)
 	}
 	defer lCon.Close()
 
@@ -82,7 +82,7 @@ func main() {
 
 	for _, msg := range flag.Args() {
 		if err := t.Send(context.Background(), log.InternalMessage{User: user.Username, Message: msg}); err != nil {
-			glog.Fatalf("could not greet: %v", err)
+			glog.Fatalf("could not send message: %v", err)
 		}
 	}
 	glog.Infof("Successfully sent %d messages", len(flag.Args()))
