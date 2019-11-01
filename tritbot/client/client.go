@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/mhutchinson/tritter/tritbot/log"
 	"github.com/mhutchinson/tritter/tritter"
 	"google.golang.org/grpc"
@@ -16,7 +17,7 @@ import (
 var (
 	tritterAddr    = flag.String("tritter_addr", "localhost:50051", "the address of the tritter server")
 	connectTimeout = flag.Duration("connect_timeout", time.Second, "the timeout for connecting to the server")
-	sendTimeout    = flag.Duration("send_timeout", 2*time.Second, "the timeout for logging & sending each message")
+	sendTimeout    = flag.Duration("send_timeout", 5*time.Second, "the timeout for logging & sending each message")
 
 	loggerAddr = flag.String("logger_addr", "localhost:50052", "the address of the logger server")
 )
@@ -29,7 +30,7 @@ type tritBot struct {
 }
 
 func (t *tritBot) Send(ctx context.Context, msg log.InternalMessage) error {
-	ctx, cancel := context.WithTimeout(ctx, *sendTimeout)
+	ctx, cancel := context.WithTimeout(ctx, t.timeout)
 	defer cancel()
 
 	// First write the message to the log.
@@ -81,7 +82,12 @@ func main() {
 	}
 
 	for _, msg := range flag.Args() {
-		if err := t.Send(context.Background(), log.InternalMessage{User: user.Username, Message: msg}); err != nil {
+		m := log.InternalMessage{
+			User:      user.Username,
+			Message:   msg,
+			Timestamp: ptypes.TimestampNow(),
+		}
+		if err := t.Send(context.Background(), m); err != nil {
 			glog.Fatalf("could not send message: %v", err)
 		}
 	}

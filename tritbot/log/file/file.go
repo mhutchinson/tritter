@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/mhutchinson/tritter/tritbot/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	listenAddr = ":50052"
+	listenAddr = "localhost:50052"
 )
 
 var (
@@ -41,7 +42,10 @@ func newFileLogger() *fileLogger {
 // Log implements log.LoggerServer.Log.
 func (l *fileLogger) Log(ctx context.Context, in *log.LogRequest) (*log.LogResponse, error) {
 	msg := in.GetMessage()
-	t := time.Now().UTC()
+	t, err := ptypes.Timestamp(msg.GetTimestamp())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid timestamp: %v", err)
+	}
 	if _, err := l.f.WriteString(fmt.Sprintf("%v: [%v] %v\n", t.Format(time.RFC3339), msg.GetUser(), msg.GetMessage())); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to log message: %v", err)
 	}
@@ -57,6 +61,7 @@ func main() {
 	}
 	s := grpc.NewServer()
 	log.RegisterLoggerServer(s, newFileLogger())
+	glog.Infof("Serving file logger on %v", listenAddr)
 	if err := s.Serve(lis); err != nil {
 		glog.Fatalf("failed to serve: %v", err)
 	}

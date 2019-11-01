@@ -4,6 +4,8 @@ package log;
 
 option go_package = "github.com/mhutchinson/tritter/tritbot/log";
 
+import "google/protobuf/timestamp.proto";
+
 // InternalMessage has the details of a message that is going to
 // be sent under the corporate account. It contains details that
 // wouldn't be sent to the Tritter service, such as username of
@@ -11,6 +13,7 @@ option go_package = "github.com/mhutchinson/tritter/tritbot/log";
 message InternalMessage {
     string user = 1;
     string message = 2;
+    google.protobuf.Timestamp timestamp = 3;
 }
 
 service Logger {

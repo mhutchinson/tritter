@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	listenAddr = ":50053"
+	listenAddr = "localhost:50053"
 )
 
 var (
@@ -100,6 +100,7 @@ func main() {
 	l := newTrillianLogger()
 	defer l.close()
 	log.RegisterLoggerServer(s, l)
+	glog.Infof("Serving trillian logger on %v", listenAddr)
 	if err := s.Serve(lis); err != nil {
 		glog.Fatalf("failed to serve: %v", err)
 	}

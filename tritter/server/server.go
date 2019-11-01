@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	listenAddr = ":50051"
+	listenAddr = "localhost:50051"
 )
 
 // server is used to implement TritterServer.
@@ -33,6 +33,7 @@ func main() {
 	}
 	s := grpc.NewServer()
 	tritter.RegisterTritterServer(s, &server{})
+	glog.Infof("Serving tritter on %v", listenAddr)
 	if err := s.Serve(lis); err != nil {
 		glog.Fatalf("failed to serve: %v", err)
 	}
