@@ -55,6 +55,7 @@ func newTrillianLogger() *trillianLogger {
 	if err != nil {
 		glog.Fatalf("failed to get tree %d: %v", *treeID, err)
 	}
+	glog.Infof("Got tree %v", tree)
 	v, err := client.NewLogVerifierFromTree(tree)
 	if err != nil {
 		glog.Fatalf("failed to create verifier from tree: %v", err)

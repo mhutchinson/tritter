@@ -3,13 +3,21 @@ package main
 
 import (
 	"context"
+	"crypto"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"flag"
+	"fmt"
 	"os/user"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	tc "github.com/google/trillian/client"
+	tcrypto "github.com/google/trillian/crypto"
+	"github.com/google/trillian/merkle/rfc6962"
 	"github.com/mhutchinson/tritter/tritbot/log"
 	"github.com/mhutchinson/tritter/tritter"
 	"google.golang.org/grpc"
@@ -29,6 +37,42 @@ type tritBot struct {
 	timeout time.Duration
 
 	log log.LoggerClient
+	v   *tc.LogVerifier
+
+	tCon, lCon *grpc.ClientConn
+}
+
+func newTrustingTritBot(ctx context.Context) *tritBot {
+	// Set up a connection to the Tritter server.
+	tCon, err := grpc.DialContext(ctx, *tritterAddr, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		glog.Fatalf("did not connect to tritter on %v: %v", *tritterAddr, err)
+	}
+
+	// Set up a connection to the Logger server.
+	lCon, err := grpc.DialContext(ctx, *loggerAddr, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		glog.Fatalf("did not connect to logger on %v: %v", *loggerAddr, err)
+	}
+
+	return &tritBot{
+		c:       tritter.NewTritterClient(tCon),
+		timeout: *sendTimeout,
+		log:     log.NewLoggerClient(lCon),
+		tCon:    tCon,
+		lCon:    lCon,
+	}
+}
+
+func newVerifyingTritBot(ctx context.Context) *tritBot {
+	t := newTrustingTritBot(ctx)
+
+	pk, err := getTrillianPK()
+	if err != nil {
+		glog.Fatalf("failed to load Trillian public key: %v", err)
+	}
+	t.v = tc.NewLogVerifier(rfc6962.DefaultHasher, *pk, crypto.SHA256)
+	return t
 }
 
 func (t *tritBot) Send(ctx context.Context, msg log.InternalMessage) error {
@@ -46,13 +90,36 @@ func (t *tritBot) Send(ctx context.Context, msg log.InternalMessage) error {
 		if r.GetProof() == nil {
 			return errors.New("no proof to verify")
 		}
-		// TODO(mhutchinson): actually check the proof.
-		glog.Warningf("TODO: check proof %v", r)
+		if t.v == nil {
+			return errors.New("tritbot not configured with verifier")
+		}
+
+		root, err := tcrypto.VerifySignedLogRoot(t.v.PubKey, t.v.SigHash, r.GetProof().GetRoot())
+		if err != nil {
+			return fmt.Errorf("failed to verify log root: %v", err)
+		}
+
+		bs, err := proto.Marshal(&msg)
+		if err != nil {
+			return fmt.Errorf("could not marshal log message: %v", err)
+		}
+
+		if err := t.v.VerifyInclusionByHash(root, t.v.BuildLeaf(bs).MerkleLeafHash, r.GetProof().GetProof()); err != nil {
+			return fmt.Errorf("could not verify inclusion proof: %v", err)
+		}
+		glog.Infof("verified proof for message %v", msg)
 	}
 
 	// Then continue to send the message to the server.
 	_, err = t.c.Send(ctx, &tritter.SendRequest{Message: msg.GetMessage()})
 	return err
+}
+
+func (t *tritBot) Close() error {
+	if err := t.tCon.Close(); err != nil {
+		return err
+	}
+	return t.lCon.Close()
 }
 
 func main() {
@@ -71,25 +138,9 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *connectTimeout)
 	defer cancel()
 
-	// Set up a connection to the Tritter server.
-	tCon, err := grpc.DialContext(ctx, *tritterAddr, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		glog.Fatalf("did not connect to tritter on %v: %v", *tritterAddr, err)
-	}
-	defer tCon.Close()
-
-	// Set up a connection to the Logger server.
-	lCon, err := grpc.DialContext(ctx, *loggerAddr, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		glog.Fatalf("did not connect to logger on %v: %v", *loggerAddr, err)
-	}
-	defer lCon.Close()
-
-	t := tritBot{
-		c:       tritter.NewTritterClient(tCon),
-		timeout: *sendTimeout,
-		log:     log.NewLoggerClient(lCon),
-	}
+	t := newTrustingTritBot(ctx)
+	// t := newVerifyingTritBot(ctx) // Use this when check_proof is required.
+	defer t.Close()
 
 	for _, msg := range flag.Args() {
 		m := log.InternalMessage{
@@ -102,4 +153,24 @@ func main() {
 		}
 	}
 	glog.Infof("Successfully sent %d messages", len(flag.Args()))
+}
+
+func getTrillianPK() (*crypto.PublicKey, error) {
+	// go run github.com/google/trillian/cmd/get_tree_public_key --admin_server=localhost:50054 --log_id=3564243390614880449
+	trillianPubKey := []byte(`
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJR3RjSqkBUuhbp4674WuqAO0WIln
+aMOM3IHek85J0IngSoNE6Vsw+lZ8YPtbGZz1k9L6yA8R3Yru26JKsGwOVQ==
+-----END PUBLIC KEY-----`)
+
+	block, _ := pem.Decode(trillianPubKey)
+	if block == nil || block.Type != "PUBLIC KEY" {
+		return nil, errors.New("failed to decode PEM block containing public key")
+	}
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	pk := pub.(crypto.PublicKey)
+	return &pk, nil
 }
