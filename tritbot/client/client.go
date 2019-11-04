@@ -16,8 +16,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	tc "github.com/google/trillian/client"
-	tcrypto "github.com/google/trillian/crypto"
 	"github.com/google/trillian/merkle/rfc6962"
+	tt "github.com/google/trillian/types"
 	"github.com/mhutchinson/tritter/tritbot/log"
 	"github.com/mhutchinson/tritter/tritter"
 	"google.golang.org/grpc"
@@ -94,7 +94,7 @@ func (t *tritBot) Send(ctx context.Context, msg log.InternalMessage) error {
 			return errors.New("tritbot not configured with verifier")
 		}
 
-		root, err := tcrypto.VerifySignedLogRoot(t.v.PubKey, t.v.SigHash, r.GetProof().GetRoot())
+		root, err := t.v.VerifyRoot(&tt.LogRootV1{}, r.GetProof().GetRoot(), [][]byte{{}})
 		if err != nil {
 			return fmt.Errorf("failed to verify log root: %v", err)
 		}
@@ -138,8 +138,8 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *connectTimeout)
 	defer cancel()
 
-	t := newTrustingTritBot(ctx)
-	// t := newVerifyingTritBot(ctx) // Use this when check_proof is required.
+	// t := newTrustingTritBot(ctx)
+	t := newVerifyingTritBot(ctx) // Use this when check_proof is required.
 	defer t.Close()
 
 	for _, msg := range flag.Args() {
