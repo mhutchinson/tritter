@@ -101,6 +101,34 @@ func (l *trillianLogger) Log(ctx context.Context, in *log.LogRequest) (*log.LogR
 	return &log.LogResponse{Proof: &log.LogProof{Root: resp.GetSignedLogRoot(), Proof: resp.GetProof()[0]}}, nil
 }
 
+// LatestRoot implements log.LoggerServer.LatestRoot.
+func (l *trillianLogger) LatestRoot(ctx context.Context, in *log.LatestRootRequest) (*log.LatestRootResponse, error) {
+	slr, err := l.l.GetLatestSignedLogRoot(ctx, &trillian.GetLatestSignedLogRootRequest{LogId: l.c.LogID})
+	if err != nil {
+		return nil, err
+	}
+
+	var logRoot tt.LogRootV1
+	if err := logRoot.UnmarshalBinary(slr.GetSignedLogRoot().LogRoot); err != nil {
+		return nil, err
+	}
+
+	var p *trillian.Proof
+	if in.GetLastTreeSize() > 0 {
+		cp, err := l.l.GetConsistencyProof(ctx, &trillian.GetConsistencyProofRequest{
+			LogId:          l.c.LogID,
+			FirstTreeSize:  in.GetLastTreeSize(),
+			SecondTreeSize: int64(logRoot.TreeSize),
+		})
+		if err != nil {
+			return nil, err
+		}
+		p = cp.GetProof()
+	}
+
+	return &log.LatestRootResponse{Root: slr.GetSignedLogRoot(), Proof: p}, nil
+}
+
 func (l *trillianLogger) close() error {
 	return l.lc.Close()
 }

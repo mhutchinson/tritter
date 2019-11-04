@@ -24,7 +24,10 @@ message LogProof {
 }
 
 service Logger {
+    // Log the message and return a proof of inclusion.
     rpc Log(LogRequest) returns (LogResponse) {}
+    // Get the latest log root and consistency proof from specified version.
+    rpc LatestRoot(LatestRootRequest) returns (LatestRootResponse) {}
 }
 
 message LogRequest {
@@ -33,4 +36,13 @@ message LogRequest {
 
 message LogResponse {
     LogProof proof = 1;
+}
+
+message LatestRootRequest {
+    int64 last_tree_size = 1;
+}
+
+message LatestRootResponse {
+    trillian.SignedLogRoot root = 1;
+    trillian.Proof proof = 2;
 }

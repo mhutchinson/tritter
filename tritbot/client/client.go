@@ -3,9 +3,6 @@ package main
 
 import (
 	"context"
-	"crypto"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
@@ -16,7 +13,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	tc "github.com/google/trillian/client"
-	"github.com/google/trillian/merkle/rfc6962"
 	tt "github.com/google/trillian/types"
 	"github.com/mhutchinson/tritter/tritbot/log"
 	"github.com/mhutchinson/tritter/tritter"
@@ -67,11 +63,11 @@ func newTrustingTritBot(ctx context.Context) *tritBot {
 func newVerifyingTritBot(ctx context.Context) *tritBot {
 	t := newTrustingTritBot(ctx)
 
-	pk, err := getTrillianPK()
+	v, err := log.TreeVerifier()
 	if err != nil {
-		glog.Fatalf("failed to load Trillian public key: %v", err)
+		glog.Fatalf("could not create tree verifier: %v", err)
 	}
-	t.v = tc.NewLogVerifier(rfc6962.DefaultHasher, *pk, crypto.SHA256)
+	t.v = v
 	return t
 }
 
@@ -153,24 +149,4 @@ func main() {
 		}
 	}
 	glog.Infof("Successfully sent %d messages", len(flag.Args()))
-}
-
-func getTrillianPK() (*crypto.PublicKey, error) {
-	// go run github.com/google/trillian/cmd/get_tree_public_key --admin_server=localhost:50054 --log_id=3564243390614880449
-	trillianPubKey := []byte(`
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJR3RjSqkBUuhbp4674WuqAO0WIln
-aMOM3IHek85J0IngSoNE6Vsw+lZ8YPtbGZz1k9L6yA8R3Yru26JKsGwOVQ==
------END PUBLIC KEY-----`)
-
-	block, _ := pem.Decode(trillianPubKey)
-	if block == nil || block.Type != "PUBLIC KEY" {
-		return nil, errors.New("failed to decode PEM block containing public key")
-	}
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	pk := pub.(crypto.PublicKey)
-	return &pk, nil
 }
