@@ -41,7 +41,7 @@ go run ./tritter/server/server.go -alsologtostderr
 ```
 export GO111MODULE=on
 go run github.com/google/trillian/server/trillian_log_server --rpc_endpoint="localhost:50054" --http_endpoint="localhost:50055" &
-go run github.com/google/trillian/server/trillian_log_signer --sequencer_interval="1s" --batch_size=500 --rpc_endpoint="localhost:50056" --http_endpoint="localhost:50057" --num_sequencers=1 --force_master
+go run github.com/google/trillian/server/trillian_log_signer --sequencer_interval="1s" --batch_size=500 --rpc_endpoint="localhost:50056" --http_endpoint="localhost:50057" --num_sequencers=1 --force_master &
 # Trillian services are now running
 go run github.com/google/trillian/cmd/createtree --admin_server=localhost:50054 # Take note of this tree/log ID
 
