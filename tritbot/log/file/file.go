@@ -61,7 +61,7 @@ func main() {
 	}
 	s := grpc.NewServer()
 	log.RegisterLoggerServer(s, newFileLogger())
-	glog.Infof("Serving file logger on %v", listenAddr)
+	glog.Infof("Serving file logger on %v, writing log to %v", listenAddr, *logFile)
 	if err := s.Serve(lis); err != nil {
 		glog.Fatalf("failed to serve: %v", err)
 	}
