@@ -79,10 +79,7 @@ func (l *trillianLogger) Log(ctx context.Context, in *log.LogRequest) (*log.LogR
 	}
 
 	// Serialize the message and write to Trillian, blocking until written.
-	bs, err := proto.Marshal(msg)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "could not marshal log message: %v", err)
-	}
+	bs := []byte(proto.MarshalTextString(msg))
 	l.c.AddLeaf(ctx, bs)
 	r := l.c.GetRoot()
 	glog.Infof("Logged to Trillian and included in r=%d: %v", r.Revision, msg)
