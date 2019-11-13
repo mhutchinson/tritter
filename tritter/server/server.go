@@ -10,8 +10,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	listenAddr = "localhost:50051"
+var (
+	listenAddr = flag.String("listen_addr", "localhost:50051", "the address the server is listening on")
 )
 
 // server is used to implement TritterServer.
