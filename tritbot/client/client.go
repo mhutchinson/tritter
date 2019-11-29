@@ -22,7 +22,7 @@ import (
 var (
 	tritterAddr    = flag.String("tritter_addr", "localhost:50051", "the address of the tritter server")
 	connectTimeout = flag.Duration("connect_timeout", time.Second, "the timeout for connecting to the server")
-	sendTimeout    = flag.Duration("send_timeout", 5*time.Second, "the timeout for logging & sending each message")
+	sendTimeout    = flag.Duration("send_timeout", 10*time.Second, "the timeout for logging & sending each message")
 
 	checkProof = flag.Bool("check_proof", false, "whether to confirm the data is logged before sending to tritter")
 	loggerAddr = flag.String("logger_addr", "localhost:50052", "the address of the logger server")
