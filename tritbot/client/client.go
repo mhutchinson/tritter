@@ -95,7 +95,7 @@ func (t *tritBot) Send(ctx context.Context, msg log.InternalMessage) error {
 			return fmt.Errorf("failed to verify log root: %v", err)
 		}
 
-		bs := byte[](proto.MarshalTextString(&msg))
+		bs := []byte(proto.MarshalTextString(&msg))
 		if err := t.v.VerifyInclusionByHash(root, t.v.BuildLeaf(bs).MerkleLeafHash, r.GetProof().GetProof()); err != nil {
 			return fmt.Errorf("could not verify inclusion proof: %v", err)
 		}
