@@ -28,6 +28,7 @@ service Logger {
     rpc Log(LogRequest) returns (LogResponse) {}
     // Get the latest log root and consistency proof from specified version.
     rpc LatestRoot(LatestRootRequest) returns (LatestRootResponse) {}
+    rpc GetEntry(GetEntryRequest) returns (GetEntryResponse) {}
 }
 
 message LogRequest {
@@ -44,5 +45,15 @@ message LatestRootRequest {
 
 message LatestRootResponse {
     trillian.SignedLogRoot root = 1;
+    trillian.Proof proof = 2;
+}
+
+message GetEntryRequest {
+    int64 revision = 1;
+    int64 index = 2;
+}
+
+message GetEntryResponse {
+    bytes data = 1;
     trillian.Proof proof = 2;
 }
