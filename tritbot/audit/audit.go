@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	tc "github.com/google/trillian/client"
+	"github.com/google/trillian/types"
 	tt "github.com/google/trillian/types"
 	"github.com/mhutchinson/tritter/tritbot/log"
 	"google.golang.org/grpc"
@@ -52,12 +54,43 @@ func new(ctx context.Context) *auditor {
 }
 
 func (a *auditor) checkLatest(ctx context.Context) error {
+	// 1. Get latest root & check consistency.
+	newRoot, err := a.getLatest(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get latest valid log root: %v", err)
+	}
+
+	if newRoot.Revision > a.trustedRoot.Revision {
+		// 2. Check that all leaves since the last audited revision are valid.
+		for i := a.trustedRoot.TreeSize; i < newRoot.TreeSize; i++ {
+			bs, err := a.getIndex(ctx, newRoot, int64(i))
+			if err != nil {
+				return fmt.Errorf("failed to get & verify leaf at index %d in revision %d: %v", i, newRoot.Revision, err)
+			}
+
+			var msg log.InternalMessage
+			if err := proto.UnmarshalText(string(bs), &msg); err != nil {
+				return fmt.Errorf("failed to unmarshal verified bytes at index %d in revision %d: %v", i, newRoot.Revision, err)
+			}
+			glog.V(2).Infof("Confirmed data at index %d: %v", i, msg)
+		}
+
+		// 3. Update the trusted root to latest audited value.
+		a.trustedRoot = *newRoot
+		glog.Infof("updated trusted root to revision=%d with size=%d", newRoot.Revision, newRoot.TreeSize)
+	}
+
+	return nil
+}
+
+// getLatest gets the latest root after checking it is consistent with the previous root.
+func (a *auditor) getLatest(ctx context.Context) (*types.LogRootV1, error) {
 	ctx, cancel := context.WithTimeout(ctx, a.timeout)
 	defer cancel()
 
 	r, err := a.log.LatestRoot(ctx, &log.LatestRootRequest{LastTreeSize: int64(a.trustedRoot.TreeSize)})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	proof := [][]byte{{}}
@@ -66,15 +99,27 @@ func (a *auditor) checkLatest(ctx context.Context) error {
 	}
 	newRoot, err := a.v.VerifyRoot(&a.trustedRoot, r.GetRoot(), proof)
 	if err != nil {
-		return fmt.Errorf("failed to verify log root: %v", err)
+		return nil, fmt.Errorf("failed to verify log root consistency: %v", err)
+	}
+	return newRoot, nil
+}
+
+// getIndex gets the data at the given index and checks the proof it is committed to
+// by the given root.
+func (a *auditor) getIndex(ctx context.Context, root *types.LogRootV1, index int64) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, a.timeout)
+	defer cancel()
+
+	r, err := a.log.GetEntry(ctx, &log.GetEntryRequest{TreeSize: int64(root.TreeSize), Index: index})
+	if err != nil {
+		return nil, err
 	}
 
-	if newRoot.Revision > a.trustedRoot.Revision {
-		a.trustedRoot = *newRoot
-		glog.Infof("updated trusted root to revision=%d with size=%d", newRoot.Revision, newRoot.TreeSize)
+	data := r.GetData()
+	if err := a.v.VerifyInclusionAtIndex(root, data, index, r.GetProof().GetHashes()); err != nil {
+		return nil, fmt.Errorf("failed to verify leaf inclusion: %v", err)
 	}
-
-	return nil
+	return data, nil
 }
 
 func (a *auditor) close() error {

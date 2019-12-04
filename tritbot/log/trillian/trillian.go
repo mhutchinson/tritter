@@ -126,6 +126,15 @@ func (l *trillianLogger) LatestRoot(ctx context.Context, in *log.LatestRootReque
 	return &log.LatestRootResponse{Root: slr.GetSignedLogRoot(), Proof: p}, nil
 }
 
+// GetEntry implements log.LoggerServer.GetEntry.
+func (l *trillianLogger) GetEntry(ctx context.Context, in *log.GetEntryRequest) (*log.GetEntryResponse, error) {
+	r, err := l.l.GetEntryAndProof(ctx, &trillian.GetEntryAndProofRequest{LogId: l.c.LogID, LeafIndex: in.GetIndex(), TreeSize: in.GetTreeSize()})
+	if err != nil {
+		return nil, err
+	}
+	return &log.GetEntryResponse{Data: r.GetLeaf().GetLeafValue(), Proof: r.GetProof()}, nil
+}
+
 func (l *trillianLogger) close() error {
 	return l.lc.Close()
 }
