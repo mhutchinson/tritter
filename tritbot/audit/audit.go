@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	tc "github.com/google/trillian/client"
 	"github.com/google/trillian/types"
 	tt "github.com/google/trillian/types"
@@ -66,7 +67,12 @@ func (a *auditor) checkLatest(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("failed to get & verify leaf at index %d in revision %d: %v", i, newRoot.Revision, err)
 			}
-			glog.V(2).Infof("Confirmed data at %d: %x", i, bs)
+
+			var msg log.InternalMessage
+			if err := proto.UnmarshalText(string(bs), &msg); err != nil {
+				return fmt.Errorf("failed to unmarshal verified bytes at index %d in revision %d: %v", i, newRoot.Revision, err)
+			}
+			glog.V(2).Infof("Confirmed data at index %d: %v", i, msg)
 		}
 
 		// 3. Update the trusted root to latest audited value.
@@ -104,7 +110,7 @@ func (a *auditor) getIndex(ctx context.Context, root *types.LogRootV1, index int
 	ctx, cancel := context.WithTimeout(ctx, a.timeout)
 	defer cancel()
 
-	r, err := a.log.GetEntry(ctx, &log.GetEntryRequest{TreeSize: int64(a.trustedRoot.TreeSize), Index: index})
+	r, err := a.log.GetEntry(ctx, &log.GetEntryRequest{TreeSize: int64(root.TreeSize), Index: index})
 	if err != nil {
 		return nil, err
 	}
