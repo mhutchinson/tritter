@@ -130,8 +130,8 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *connectTimeout)
 	defer cancel()
 
-	// t := newTrustingTritBot(ctx)
-	t := newVerifyingTritBot(ctx) // Use this when check_proof is required.
+	t := newTrustingTritBot(ctx)
+	//t := newVerifyingTritBot(ctx) // Use this when check_proof is required.
 	defer t.Close()
 
 	for _, msg := range flag.Args() {
